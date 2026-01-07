@@ -114,6 +114,8 @@ async def update_xhs_note(note_item: Dict):
         "user_id": user_info.get("user_id"),  # User ID
         "nickname": user_info.get("nickname"),  # User nickname
         "avatar": user_info.get("avatar"),  # User avatar
+        "creator_fans": note_item.get("creator_fans", ""),  # 博主粉丝数
+        "creator_nickname": note_item.get("creator_nickname", ""),  # 博主昵称（来自个人主页）
         "liked_count": interact_info.get("liked_count"),  # Like count
         "collected_count": interact_info.get("collected_count"),  # Collection count
         "comment_count": interact_info.get("comment_count"),  # Comment count

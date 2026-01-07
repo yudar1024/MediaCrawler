@@ -167,6 +167,24 @@ class XiaoHongShuCrawler(AbstractCrawler):
                     note_details = await asyncio.gather(*task_list)
                     for note_detail in note_details:
                         if note_detail:
+                            # 获取博主信息（粉丝数、昵称）
+                            user_info = note_detail.get("user", {})
+                            user_id = user_info.get("user_id")
+                            if user_id:
+                                try:
+                                    creator_info = await self.xhs_client.get_creator_info(user_id=user_id)
+                                    if creator_info:
+                                        # 提取粉丝数
+                                        fans_count = 0
+                                        for interaction in creator_info.get('interactions', []):
+                                            if interaction.get('type') == 'fans':
+                                                fans_count = interaction.get('count', 0)
+                                                break
+                                        note_detail['creator_fans'] = fans_count
+                                        note_detail['creator_nickname'] = creator_info.get('basicInfo', {}).get('nickname', '')
+                                        utils.logger.info(f"[XiaoHongShuCrawler.search] Got creator info for {user_id}: fans={fans_count}")
+                                except Exception as e:
+                                    utils.logger.warning(f"[XiaoHongShuCrawler.search] Failed to get creator info for user {user_id}: {e}")
                             await xhs_store.update_xhs_note(note_detail)
                             await self.get_notice_media(note_detail)
                             note_ids.append(note_detail.get("note_id"))
