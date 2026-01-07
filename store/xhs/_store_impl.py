@@ -118,6 +118,18 @@ class XhsDbStoreImplement(AbstractStore):
     async def add_content(self, session: AsyncSession, content_item: Dict):
         add_ts = int(get_current_timestamp())
         last_modify_ts = int(get_current_timestamp())
+        like_count=''
+        if content_item.get("like_count").contains("万"):
+            like_count = content_item.get("like_count").replace("万", "")
+            like_count = int(like_count) * 10000
+        else:
+            like_count = content_item.get("like_count")
+        comment_count=''
+        if content_item.get("comment_count").contains("万"):
+            comment_count = content_item.get("comment_count").replace("万", "")
+            comment_count = int(comment_count) * 10000
+        else:
+            comment_count = content_item.get("comment_count")
         note = XhsNote(
             user_id=content_item.get("user_id"),
             nickname=content_item.get("nickname"),
@@ -132,9 +144,9 @@ class XhsDbStoreImplement(AbstractStore):
             video_url=content_item.get("video_url"),
             time=content_item.get("time"),
             last_update_time=content_item.get("last_update_time"),
-            liked_count=str(content_item.get("liked_count")),
+            liked_count=like_count,
             collected_count=str(content_item.get("collected_count")),
-            comment_count=str(content_item.get("comment_count")),
+            comment_count=comment_count,
             share_count=str(content_item.get("share_count")),
             image_list=json.dumps(content_item.get("image_list")),
             tag_list=json.dumps(content_item.get("tag_list")),
@@ -194,6 +206,7 @@ class XhsDbStoreImplement(AbstractStore):
             parent_comment_id=comment_item.get("parent_comment_id"),
             like_count=str(comment_item.get("like_count"))
         )
+
         session.add(comment)
 
     async def update_comment(self, session: AsyncSession, comment_item: Dict):
