@@ -21,10 +21,42 @@
 # @Author  : relakkes@gmail.com
 # @Time    : 2024/1/14 17:34
 # @Desc    :
-from typing import List
+from typing import List, Union
 
 import config
 from var import source_keyword_var
+
+
+def parse_count_value(value: Union[str, int, None]) -> int:
+    """
+    解析数量值，将 "xxx万" 格式转换为实际数字
+    例如: "1.5万" -> 15000, "12" -> 12
+    
+    Args:
+        value: 原始数量值，可能是字符串(如"1.5万")或数字
+    
+    Returns:
+        int: 解析后的整数值
+    """
+    if value is None:
+        return 0
+    
+    if isinstance(value, (int, float)):
+        return int(value)
+    
+    value_str = str(value).strip()
+    if not value_str:
+        return 0
+    
+    try:
+        if "万" in value_str:
+            # 移除"万"并转换为数字
+            num_str = value_str.replace("万", "").strip()
+            return int(float(num_str) * 10000)
+        else:
+            return int(float(value_str))
+    except (ValueError, TypeError):
+        return 0
 
 from .xhs_store_media import *
 from ._store_impl import *
@@ -116,10 +148,10 @@ async def update_xhs_note(note_item: Dict):
         "avatar": user_info.get("avatar"),  # User avatar
         "creator_fans": note_item.get("creator_fans", ""),  # 博主粉丝数
         "creator_nickname": note_item.get("creator_nickname", ""),  # 博主昵称（来自个人主页）
-        "liked_count": interact_info.get("liked_count"),  # Like count
-        "collected_count": interact_info.get("collected_count"),  # Collection count
-        "comment_count": interact_info.get("comment_count"),  # Comment count
-        "share_count": interact_info.get("share_count"),  # Share count
+        "liked_count": parse_count_value(interact_info.get("liked_count")),  # Like count (转换"万"为数字)
+        "collected_count": parse_count_value(interact_info.get("collected_count")),  # Collection count (转换"万"为数字)
+        "comment_count": parse_count_value(interact_info.get("comment_count")),  # Comment count (转换"万"为数字)
+        "share_count": parse_count_value(interact_info.get("share_count")),  # Share count (转换"万"为数字)
         "ip_location": note_item.get("ip_location", ""),  # IP location
         "image_list": ','.join([img.get('url', '') for img in image_list]),  # Image URLs
         "tag_list": ','.join([tag.get('name', '') for tag in tag_list if tag.get('type') == 'topic']),  # Tags
