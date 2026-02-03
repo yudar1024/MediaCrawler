@@ -167,24 +167,8 @@ class XiaoHongShuCrawler(AbstractCrawler):
                     note_details = await asyncio.gather(*task_list)
                     for note_detail in note_details:
                         if note_detail:
-                            # 获取博主信息（粉丝数、昵称）
-                            user_info = note_detail.get("user", {})
-                            user_id = user_info.get("user_id")
-                            if user_id:
-                                try:
-                                    creator_info = await self.xhs_client.get_creator_info(user_id=user_id)
-                                    if creator_info:
-                                        # 提取粉丝数
-                                        fans_count = 0
-                                        for interaction in creator_info.get('interactions', []):
-                                            if interaction.get('type') == 'fans':
-                                                fans_count = interaction.get('count', 0)
-                                                break
-                                        note_detail['creator_fans'] = fans_count
-                                        note_detail['creator_nickname'] = creator_info.get('basicInfo', {}).get('nickname', '')
-                                        utils.logger.info(f"[XiaoHongShuCrawler.search] Got creator info for {user_id}: fans={fans_count}")
-                                except Exception as e:
-                                    utils.logger.warning(f"[XiaoHongShuCrawler.search] Failed to get creator info for user {user_id}: {e}")
+                            # 获取博主粉丝数量信息
+                            await self._extract_creator_fans_info(note_detail)
                             await xhs_store.update_xhs_note(note_detail)
                             await self.get_notice_media(note_detail)
                             note_ids.append(note_detail.get("note_id"))
@@ -255,6 +239,8 @@ class XiaoHongShuCrawler(AbstractCrawler):
         note_details = await asyncio.gather(*task_list)
         for note_detail in note_details:
             if note_detail:
+                # 获取博主粉丝数量信息
+                await self._extract_creator_fans_info(note_detail)
                 await xhs_store.update_xhs_note(note_detail)
                 await self.get_notice_media(note_detail)
 
@@ -280,6 +266,8 @@ class XiaoHongShuCrawler(AbstractCrawler):
         note_details = await asyncio.gather(*get_note_detail_task_list)
         for note_detail in note_details:
             if note_detail:
+                # 获取博主粉丝数量信息
+                await self._extract_creator_fans_info(note_detail)
                 need_get_comment_note_ids.append(note_detail.get("note_id", ""))
                 xsec_tokens.append(note_detail.get("xsec_token", ""))
                 await xhs_store.update_xhs_note(note_detail)
@@ -467,6 +455,64 @@ class XiaoHongShuCrawler(AbstractCrawler):
         else:
             await self.browser_context.close()
         utils.logger.info("[XiaoHongShuCrawler.close] Browser context closed ...")
+
+    async def _extract_creator_fans_info(self, note_detail: Dict) -> None:
+        """
+        提取小红书帖子博主的粉丝数量信息
+        
+        Args:
+            note_detail (Dict): 小红书帖子详情字典
+        """
+        try:
+            # 从帖子信息中提取作者信息
+            user_info = note_detail.get("user", {})
+            user_id = user_info.get("user_id")
+            original_nickname = user_info.get("nickname", "")
+            
+            if not user_id:
+                utils.logger.warning(f"[XiaoHongShuCrawler._extract_creator_fans_info] Cannot get user_id from note detail")
+                # 设置默认值
+                note_detail['creator_fans'] = 0
+                note_detail['creator_nickname'] = original_nickname
+                return
+            
+            # 获取创作者详细信息
+            creator_info = await self.xhs_client.get_creator_info(user_id=user_id)
+            
+            if creator_info:
+                # 提取粉丝数
+                fans_count = 0
+                nickname = original_nickname
+                
+                # 从互动信息中提取粉丝数
+                interactions = creator_info.get('interactions', [])
+                for interaction in interactions:
+                    if interaction.get('type') == 'fans':
+                        fans_count = interaction.get('count', 0)
+                        break
+                
+                # 从基本信息中提取昵称
+                basic_info = creator_info.get('basicInfo', {})
+                if basic_info.get('nickname'):
+                    nickname = basic_info.get('nickname')
+                
+                # 将信息添加到帖子详情中
+                note_detail['creator_fans'] = fans_count
+                note_detail['creator_nickname'] = nickname
+                
+                utils.logger.info(f"[XiaoHongShuCrawler._extract_creator_fans_info] Creator {nickname} (ID: {user_id}) has {fans_count} followers")
+            else:
+                # 如果无法获取创作者信息，使用帖子中的基本信息
+                note_detail['creator_fans'] = 0
+                note_detail['creator_nickname'] = original_nickname
+                utils.logger.warning(f"[XiaoHongShuCrawler._extract_creator_fans_info] Cannot get creator info for user {user_id}")
+                
+        except Exception as e:
+            utils.logger.error(f"[XiaoHongShuCrawler._extract_creator_fans_info] Error extracting creator fans info: {e}")
+            # 发生异常时设置默认值
+            user_info = note_detail.get("user", {})
+            note_detail['creator_fans'] = 0
+            note_detail['creator_nickname'] = user_info.get('nickname', '')
 
     async def get_notice_media(self, note_detail: Dict):
         if not config.ENABLE_GET_MEIDAS:
