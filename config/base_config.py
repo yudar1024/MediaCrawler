@@ -18,7 +18,7 @@
 # 使用本代码即表示您同意遵守上述原则和LICENSE中的所有条款。
 
 # 基础配置
-PLATFORM = "xhs"  # 平台，xhs | dy | ks | bili | wb | tieba | zhihu
+PLATFORM = "dy"  # 平台，xhs | dy | ks | bili | wb | tieba | zhihu
 KEYWORDS = "AI工具,一人企业,AI员工,企业级AI应用,企业AI落地方法"  # 关键词搜索配置，以英文逗号分隔
 LOGIN_TYPE = "qrcode"  # qrcode or phone or cookie
 COOKIES = ""
@@ -80,7 +80,7 @@ USER_DATA_DIR = "%s_user_data_dir"  # %s will be replaced by platform name
 START_PAGE = 1
 
 # 爬取视频/帖子的数量控制
-CRAWLER_MAX_NOTES_COUNT = 50
+CRAWLER_MAX_NOTES_COUNT = 5
 
 # 并发爬虫数量控制
 MAX_CONCURRENCY_NUM = 1

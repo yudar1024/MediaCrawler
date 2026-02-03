@@ -159,6 +159,9 @@ class DouYinCrawler(AbstractCrawler):
                         continue
                     aweme_list.append(aweme_info.get("aweme_id", ""))
                     page_aweme_list.append(aweme_info.get("aweme_id", ""))
+                    # 获取作者粉丝数量并添加到视频信息中
+                    author_fans_count = await self.get_author_fans_count(aweme_info)
+                    aweme_info['author_fans_count'] = author_fans_count
                     await douyin_store.update_douyin_aweme(aweme_item=aweme_info)
                     await self.get_aweme_media(aweme_item=aweme_info)
                 
@@ -201,6 +204,9 @@ class DouYinCrawler(AbstractCrawler):
         aweme_details = await asyncio.gather(*task_list)
         for aweme_detail in aweme_details:
             if aweme_detail is not None:
+                # 获取作者粉丝数量并添加到视频信息中
+                author_fans_count = await self.get_author_fans_count(aweme_detail)
+                aweme_detail['author_fans_count'] = author_fans_count
                 await douyin_store.update_douyin_aweme(aweme_item=aweme_detail)
                 await self.get_aweme_media(aweme_item=aweme_detail)
         await self.batch_get_note_comments(aweme_id_list)
@@ -293,6 +299,9 @@ class DouYinCrawler(AbstractCrawler):
         note_details = await asyncio.gather(*task_list)
         for aweme_item in note_details:
             if aweme_item is not None:
+                # 获取作者粉丝数量并添加到视频信息中
+                author_fans_count = await self.get_author_fans_count(aweme_item)
+                aweme_item['author_fans_count'] = author_fans_count
                 await douyin_store.update_douyin_aweme(aweme_item=aweme_item)
                 await self.get_aweme_media(aweme_item=aweme_item)
 
@@ -455,3 +464,43 @@ class DouYinCrawler(AbstractCrawler):
             return
         extension_file_name = f"video.mp4"
         await douyin_store.update_dy_aweme_video(aweme_id, content, extension_file_name)
+        
+    async def get_author_fans_count(self, aweme_item: Dict) -> int:
+        """
+        获取视频作者的粉丝数量
+
+        Args:
+            aweme_item (Dict): 抖音作品详情
+
+        Returns:
+            int: 作者粉丝数量
+        """
+        try:
+            # 从视频信息中提取作者信息
+            user_info = aweme_item.get("author", {})
+            sec_user_id = user_info.get("sec_uid")
+
+            if not sec_user_id:
+                utils.logger.warning(f"[DouYinCrawler.get_author_fans_count] Cannot get sec_user_id from aweme item")
+                return 0
+
+            # 获取详细的用户信息
+            user_detail = await self.dy_client.get_user_info(sec_user_id)
+
+            if user_detail and "user" in user_detail:
+                user_data = user_detail["user"]
+                # 从用户信息中提取粉丝数量
+                fans_count = user_data.get("follower_count", 0)
+                max_follower_count = user_data.get("max_follower_count", 0)
+
+                # 返回较大的那个值作为粉丝数
+                author_fans = max(fans_count, max_follower_count)
+                utils.logger.info(f"[DouYinCrawler.get_author_fans_count] Author {user_data.get('nickname', 'Unknown')} has {author_fans} followers")
+                return author_fans
+            else:
+                utils.logger.warning(f"[DouYinCrawler.get_author_fans_count] Cannot get user detail for sec_user_id: {sec_user_id}")
+                return 0
+
+        except Exception as e:
+            utils.logger.error(f"[DouYinCrawler.get_author_fans_count] Error getting author fans count: {e}")
+            return 0

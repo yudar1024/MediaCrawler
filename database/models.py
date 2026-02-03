@@ -137,6 +137,8 @@ class DouyinAweme(Base):
     music_download_url = Column(Text)
     note_download_url = Column(Text)
     source_keyword = Column(Text, default='')
+        # 添加新字段
+    author_fans_count = Column(Text)  # 作者粉丝数量
 
 class DouyinAwemeComment(Base):
     __tablename__ = 'douyin_aweme_comment'
